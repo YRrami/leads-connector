@@ -128,6 +128,586 @@ const pricingPlans = [
   },
 ];
 
+/**
+ * ROI CALCULATOR SECTION
+ * - Dual input mode (sliders/manual)
+ * - Currency selector (USD / SAR / AED)
+ */
+
+function RoiCalculatorSection() {
+  const [inputMode, setInputMode] = useState<"slider" | "input">("slider");
+  const [currency, setCurrency] = useState<"USD" | "SAR" | "AED">("USD");
+
+  const [humanAgents, setHumanAgents] = useState<number>(12);
+  const [hourlyRate, setHourlyRate] = useState<number>(20);
+  const [taxesBenefits, setTaxesBenefits] = useState<number>(25);
+  const [humanUtilization, setHumanUtilization] = useState<number>(55);
+
+  const [aiHourlyRate, setAiHourlyRate] = useState<number>(8);
+  const [aiUtilization, setAiUtilization] = useState<number>(95);
+
+  const fullHoursPerMonth = 160;
+
+  // Helpers
+  const formatCurrency = (value: number) =>
+    new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency,
+      maximumFractionDigits: 0,
+    }).format(value);
+
+  const shortFormatter = new Intl.NumberFormat("en-US", {
+    notation: "compact",
+    maximumFractionDigits: 1,
+  });
+
+  const currencyLabel: Record<"USD" | "SAR" | "AED", string> = {
+    USD: "USD $",
+    SAR: "SAR ﷼",
+    AED: "AED د.إ",
+  };
+
+  // Core math
+  const humanLoadedRate = hourlyRate * (1 + taxesBenefits / 100);
+  const humanScheduledHours = humanAgents * fullHoursPerMonth;
+  const humanTalkHours =
+    humanScheduledHours * (humanUtilization > 0 ? humanUtilization / 100 : 0);
+  const humanMonthlyCost = humanScheduledHours * humanLoadedRate;
+
+  const aiScheduledHours =
+    humanTalkHours / (aiUtilization > 0 ? aiUtilization / 100 : 1);
+  const aiMonthlyCost = aiScheduledHours * aiHourlyRate;
+
+  const aiAgentsNeeded =
+    aiScheduledHours > 0 ? aiScheduledHours / fullHoursPerMonth : 0;
+
+  const monthlySavings = humanMonthlyCost - aiMonthlyCost;
+  const safeMonthlySavings = Math.max(monthlySavings, 0);
+  const yearlySavings = safeMonthlySavings * 12;
+  const fiveYearSavings = safeMonthlySavings * 60;
+
+  const maxMonthlyCost = Math.max(humanMonthlyCost, aiMonthlyCost, 1);
+  const humanCostWidth = (humanMonthlyCost / maxMonthlyCost) * 100;
+  const aiCostWidth = (aiMonthlyCost / maxMonthlyCost) * 100;
+
+  return (
+    <section
+      id="roi-calculator"
+      className="relative border-b border-white/5 bg-slate-950"
+    >
+      {/* Softer background gradient */}
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(129,140,248,0.35),transparent_65%),radial-gradient(circle_at_bottom,_rgba(236,72,153,0.22),transparent_55%)] opacity-70" />
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(148,163,184,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.04)_1px,transparent_1px)] bg-[size:90px_90px] opacity-25" />
+
+      <div className="relative mx-auto flex max-w-6xl flex-col gap-10 px-4 pb-16 pt-14 sm:px-6 lg:px-10 lg:pb-20 lg:pt-18">
+        {/* Header + controls */}
+        <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+          <div className="space-y-4 max-w-2xl">
+            <span className="inline-flex items-center gap-2 rounded-full border border-violet-500/40 bg-violet-500/10 px-3 py-1 text-xs font-medium text-violet-100">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              ROI Snapshot · Automation vs. Agents
+            </span>
+            <h2 className="text-balance text-3xl font-semibold text-slate-50 sm:text-4xl lg:text-[2.6rem] lg:leading-snug">
+              See how{" "}
+              <span className="bg-gradient-to-r from-violet-300 via-purple-300 to-fuchsia-300 bg-clip-text text-transparent">
+                Leads Connector automation
+              </span>{" "}
+              impacts your team cost.
+            </h2>
+            <p className="text-base leading-relaxed text-slate-200 sm:text-lg">
+              Adjust your current team size and hourly cost. The calculator
+              estimates how automation and AI could reduce your monthly spend in{" "}
+              <span className="font-semibold text-violet-200">
+                {currencyLabel[currency]}
+              </span>
+              .
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-4 text-sm text-slate-200 sm:flex-row sm:items-center sm:justify-end">
+            {/* Currency selector */}
+            <div className="flex flex-col gap-1.5">
+              <span className="text-xs uppercase tracking-[0.18em] text-slate-400">
+                Currency
+              </span>
+              <select
+                value={currency}
+                onChange={(e) =>
+                  setCurrency(e.target.value as "USD" | "SAR" | "AED")
+                }
+                className="h-11 min-w-[160px] rounded-full border border-white/10 bg-slate-900/80 px-3 text-sm text-slate-100 outline-none ring-0 transition-all focus:border-violet-500 focus:ring-2 focus:ring-violet-500/40"
+              >
+                <option value="USD">USD · $</option>
+                <option value="SAR">SAR · ﷼</option>
+                <option value="AED">AED · د.إ</option>
+              </select>
+            </div>
+
+            {/* Input mode toggle */}
+            <div className="flex flex-col gap-1.5">
+              <span className="text-xs uppercase tracking-[0.18em] text-slate-400">
+                Input mode
+              </span>
+              <div className="inline-flex items-center rounded-full border border-white/10 bg-slate-900/80 p-1 shadow-[0_10px_30px_rgba(15,23,42,0.7)]">
+                <button
+                  type="button"
+                  onClick={() => setInputMode("slider")}
+                  className={`rounded-full px-4 py-1.5 text-xs font-medium transition-all ${
+                    inputMode === "slider"
+                      ? "bg-slate-50 text-slate-900 shadow-[0_6px_20px_rgba(15,23,42,0.6)]"
+                      : "text-slate-300 hover:text-slate-50"
+                  }`}
+                >
+                  Sliders
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setInputMode("input")}
+                  className={`rounded-full px-4 py-1.5 text-xs font-medium transition-all ${
+                    inputMode === "input"
+                      ? "bg-slate-50 text-slate-900 shadow-[0_6px_20px_rgba(15,23,42,0.6)]"
+                      : "text-slate-300 hover:text-slate-50"
+                  }`}
+                >
+                  Manual entry
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Main grid */}
+        <div className="grid gap-7 md:grid-cols-[minmax(0,1.3fr),minmax(0,1fr)]">
+          {/* Input card */}
+          <div className="rounded-3xl border border-white/12 bg-slate-950/90 p-6 shadow-[0_20px_60px_rgba(15,23,42,0.9)] backdrop-blur-2xl sm:p-7 lg:p-8">
+            <p className="mb-5 text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+              Your current human team
+            </p>
+
+            <div className="grid gap-5 sm:grid-cols-2">
+              {/* Agents */}
+              <div className="space-y-2.5 text-sm text-slate-200">
+                <label className="flex items-center justify-between">
+                  <span className="text-[15px] text-slate-100">
+                    Number of agents
+                  </span>
+                  <span className="text-xs text-slate-400">
+                    {humanAgents} agents
+                  </span>
+                </label>
+                {inputMode === "slider" ? (
+                  <input
+                    type="range"
+                    min={3}
+                    max={200}
+                    value={humanAgents}
+                    onChange={(e) =>
+                      setHumanAgents(Number(e.target.value || 0))
+                    }
+                    className="w-full accent-violet-400"
+                  />
+                ) : (
+                  <input
+                    type="number"
+                    min={1}
+                    max={500}
+                    value={humanAgents}
+                    onChange={(e) =>
+                      setHumanAgents(
+                        Math.max(1, Number(e.target.value || 0))
+                      )
+                    }
+                    className="h-11 w-full rounded-lg border border-white/10 bg-slate-900/80 px-3 text-sm text-slate-100 outline-none ring-0 transition-all placeholder:text-slate-500 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/40"
+                    placeholder="12"
+                  />
+                )}
+                <p className="text-xs leading-relaxed text-slate-400">
+                  Frontline agents handling WhatsApp, calls and inbound leads.
+                </p>
+              </div>
+
+              {/* Hourly rate */}
+              <div className="space-y-2.5 text-sm text-slate-200">
+                <label className="flex items-center justify-between">
+                  <span className="text-[15px] text-slate-100">
+                    Base hourly rate
+                  </span>
+                  <span className="text-xs text-slate-400">
+                    {formatCurrency(hourlyRate)} / hr
+                  </span>
+                </label>
+                {inputMode === "slider" ? (
+                  <input
+                    type="range"
+                    min={5}
+                    max={200}
+                    step={1}
+                    value={hourlyRate}
+                    onChange={(e) =>
+                      setHourlyRate(Number(e.target.value || 0))
+                    }
+                    className="w-full accent-violet-400"
+                  />
+                ) : (
+                  <input
+                    type="number"
+                    min={1}
+                    max={500}
+                    value={hourlyRate}
+                    onChange={(e) =>
+                      setHourlyRate(Math.max(1, Number(e.target.value || 0)))
+                    }
+                    className="h-11 w-full rounded-lg border border-white/10 bg-slate-900/80 px-3 text-sm text-slate-100 outline-none ring-0 transition-all placeholder:text-slate-500 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/40"
+                    placeholder="20"
+                  />
+                )}
+                <p className="text-xs leading-relaxed text-slate-400">
+                  Before taxes, benefits and commissions, in{" "}
+                  {currencyLabel[currency]}.
+                </p>
+              </div>
+
+              {/* Taxes & benefits */}
+              <div className="space-y-2.5 text-sm text-slate-200">
+                <label className="flex items-center justify-between">
+                  <span className="text-[15px] text-slate-100">
+                    Taxes, benefits &amp; commission
+                  </span>
+                  <span className="text-xs text-slate-400">
+                    {taxesBenefits}%
+                  </span>
+                </label>
+                {inputMode === "slider" ? (
+                  <input
+                    type="range"
+                    min={0}
+                    max={60}
+                    step={1}
+                    value={taxesBenefits}
+                    onChange={(e) =>
+                      setTaxesBenefits(Number(e.target.value || 0))
+                    }
+                    className="w-full accent-violet-400"
+                  />
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={taxesBenefits}
+                      onChange={(e) =>
+                        setTaxesBenefits(
+                          Math.max(0, Number(e.target.value || 0))
+                        )
+                      }
+                      className="h-11 w-full rounded-lg border border-white/10 bg-slate-900/80 px-3 text-sm text-slate-100 outline-none ring-0 transition-all placeholder:text-slate-500 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/40"
+                      placeholder="25"
+                    />
+                    <span className="inline-flex h-11 items-center rounded-lg border border-white/10 bg-slate-900/80 px-2 text-xs text-slate-400">
+                      %
+                    </span>
+                  </div>
+                )}
+                <p className="text-xs leading-relaxed text-slate-400">
+                  All additional payroll overhead on top of base hourly.
+                </p>
+              </div>
+
+              {/* Human utilization */}
+              <div className="space-y-2.5 text-sm text-slate-200">
+                <label className="flex items-center justify-between">
+                  <span className="text-[15px] text-slate-100">
+                    Talk / productive utilization
+                  </span>
+                  <span className="text-xs text-slate-400">
+                    {humanUtilization}%
+                  </span>
+                </label>
+                {inputMode === "slider" ? (
+                  <input
+                    type="range"
+                    min={30}
+                    max={85}
+                    step={1}
+                    value={humanUtilization}
+                    onChange={(e) =>
+                      setHumanUtilization(Number(e.target.value || 0))
+                    }
+                    className="w-full accent-violet-400"
+                  />
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min={1}
+                      max={100}
+                      value={humanUtilization}
+                      onChange={(e) =>
+                        setHumanUtilization(
+                          Math.max(1, Number(e.target.value || 0))
+                        )
+                      }
+                      className="h-11 w-full rounded-lg border border-white/10 bg-slate-900/80 px-3 text-sm text-slate-100 outline-none ring-0 transition-all placeholder:text-slate-500 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/40"
+                      placeholder="55"
+                    />
+                    <span className="inline-flex h-11 items-center rounded-lg border border-white/10 bg-slate-900/80 px-2 text-xs text-slate-400">
+                      %
+                    </span>
+                  </div>
+                )}
+                <p className="text-xs leading-relaxed text-slate-400">
+                  Time actively on chats/calls vs. breaks, meetings and idle.
+                </p>
+              </div>
+            </div>
+
+            <hr className="my-7 border-white/10" />
+
+            {/* AI / Automation */}
+            <p className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+              With automation &amp; AI workflows
+            </p>
+            <div className="grid gap-5 sm:grid-cols-2">
+              {/* AI hourly */}
+              <div className="space-y-2.5 text-sm text-slate-200">
+                <label className="flex items-center justify-between">
+                  <span className="text-[15px] text-slate-100">
+                    AI assistant hourly equivalent
+                  </span>
+                  <span className="text-xs text-slate-400">
+                    {formatCurrency(aiHourlyRate)} / hr
+                  </span>
+                </label>
+                {inputMode === "slider" ? (
+                  <input
+                    type="range"
+                    min={1}
+                    max={100}
+                    step={1}
+                    value={aiHourlyRate}
+                    onChange={(e) =>
+                      setAiHourlyRate(Number(e.target.value || 0))
+                    }
+                    className="w-full accent-emerald-400"
+                  />
+                ) : (
+                  <input
+                    type="number"
+                    min={1}
+                    max={200}
+                    value={aiHourlyRate}
+                    onChange={(e) =>
+                      setAiHourlyRate(Math.max(1, Number(e.target.value || 0)))
+                    }
+                    className="h-11 w-full rounded-lg border border-white/10 bg-slate-900/80 px-3 text-sm text-slate-100 outline-none ring-0 transition-all placeholder:text-slate-500 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/40"
+                    placeholder="8"
+                  />
+                )}
+                <p className="text-xs leading-relaxed text-slate-400">
+                  Effective hourly rate for automation covering the same volume.
+                </p>
+              </div>
+
+              {/* AI utilization */}
+              <div className="space-y-2.5 text-sm text-slate-200">
+                <label className="flex items-center justify-between">
+                  <span className="text-[15px] text-slate-100">
+                    AI utilization
+                  </span>
+                  <span className="text-xs text-slate-400">
+                    {aiUtilization}%
+                  </span>
+                </label>
+                {inputMode === "slider" ? (
+                  <input
+                    type="range"
+                    min={70}
+                    max={99}
+                    step={1}
+                    value={aiUtilization}
+                    onChange={(e) =>
+                      setAiUtilization(Number(e.target.value || 0))
+                    }
+                    className="w-full accent-emerald-400"
+                  />
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min={1}
+                      max={100}
+                      value={aiUtilization}
+                      onChange={(e) =>
+                        setAiUtilization(
+                          Math.max(1, Number(e.target.value || 0))
+                        )
+                      }
+                      className="h-11 w-full rounded-lg border border-white/10 bg-slate-900/80 px-3 text-sm text-slate-100 outline-none ring-0 transition-all placeholder:text-slate-500 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/40"
+                      placeholder="95"
+                    />
+                    <span className="inline-flex h-11 items-center rounded-lg border border-white/10 bg-slate-900/80 px-2 text-xs text-slate-400">
+                      %
+                    </span>
+                  </div>
+                )}
+                <p className="text-xs leading-relaxed text-slate-400">
+                  AI can stay productive for a much larger share of scheduled
+                  time.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Output / summary card */}
+          <div className="flex flex-col gap-5 rounded-3xl border border-white/12 bg-slate-950/95 p-6 shadow-[0_20px_60px_rgba(15,23,42,0.9)] backdrop-blur-2xl sm:p-7 lg:p-8">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+                  Projected savings
+                </p>
+                <p className="mt-2 text-sm leading-relaxed text-slate-200">
+                  Based on your inputs, automation can replace a large portion
+                  of your agent capacity.
+                </p>
+              </div>
+              <span className="inline-flex items-center rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-300">
+                Live estimate
+              </span>
+            </div>
+
+            <div className="rounded-2xl border border-emerald-500/40 bg-gradient-to-br from-emerald-500/15 via-slate-900 to-slate-950 px-4 py-5">
+              <p className="text-xs uppercase tracking-[0.2em] text-emerald-300">
+                Monthly savings potential
+              </p>
+              <div className="mt-3 flex items-baseline gap-3">
+                <span className="text-4xl font-semibold text-emerald-200">
+                  {safeMonthlySavings > 0
+                    ? formatCurrency(safeMonthlySavings)
+                    : formatCurrency(0)}
+                </span>
+                <span className="text-sm text-emerald-300/80">
+                  per month
+                </span>
+              </div>
+              <div className="mt-4 grid gap-3 text-sm text-emerald-100 sm:grid-cols-2">
+                <div className="rounded-xl bg-emerald-500/10 px-3 py-3">
+                  <p className="text-xs text-emerald-200/80">Per year</p>
+                  <p className="mt-1 text-base font-semibold">
+                    {shortFormatter.format(yearlySavings)}{" "}
+                    <span className="text-xs font-normal">{currency}</span>
+                  </p>
+                </div>
+                <div className="rounded-xl bg-emerald-500/10 px-3 py-3">
+                  <p className="text-xs text-emerald-200/80">Over 5 years</p>
+                  <p className="mt-1 text-base font-semibold">
+                    {shortFormatter.format(fiveYearSavings)}{" "}
+                    <span className="text-xs font-normal">{currency}</span>
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Cost comparison */}
+            <div className="space-y-4 rounded-2xl border border-white/8 bg-slate-900/85 px-4 py-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+                Cost comparison
+              </p>
+
+              <div className="space-y-3 text-sm text-slate-200">
+                <div className="flex items-center justify-between">
+                  <span className="text-[15px] text-slate-100">
+                    Current human team
+                  </span>
+                  <span className="font-medium">
+                    {formatCurrency(humanMonthlyCost)} / mo
+                  </span>
+                </div>
+                <div className="h-2.5 w-full rounded-full bg-slate-800">
+                  <div
+                    className="h-2.5 rounded-full bg-gradient-to-r from-violet-400 to-fuchsia-400"
+                    style={{ width: `${humanCostWidth}%` }}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between pt-2">
+                  <span className="text-[15px] text-slate-100">
+                    With automation
+                  </span>
+                  <span className="font-medium">
+                    {formatCurrency(aiMonthlyCost)} / mo
+                  </span>
+                </div>
+                <div className="h-2.5 w-full rounded-full bg-slate-800">
+                  <div
+                    className="h-2.5 rounded-full bg-gradient-to-r from-emerald-400 to-cyan-400"
+                    style={{ width: `${aiCostWidth}%` }}
+                  />
+                </div>
+              </div>
+
+              <div className="mt-4 grid gap-3 text-sm text-slate-200 sm:grid-cols-2">
+                <div className="rounded-xl bg-slate-900/90 px-3 py-3">
+                  <p className="text-xs text-slate-400">
+                    Equivalent AI capacity
+                  </p>
+                  <p className="mt-1 text-base font-semibold text-slate-50">
+                    {aiAgentsNeeded > 0 ? aiAgentsNeeded.toFixed(1) : "0.0"}{" "}
+                    <span className="text-xs font-normal text-slate-400">
+                      agent(s)
+                    </span>
+                  </p>
+                </div>
+                <div className="rounded-xl bg-slate-900/90 px-3 py-3">
+                  <p className="text-xs text-slate-400">
+                    Human agents replaced
+                  </p>
+                  <p className="mt-1 text-base font-semibold text-slate-50">
+                    {aiAgentsNeeded > 0
+                      ? `${Math.max(humanAgents - aiAgentsNeeded, 0).toFixed(
+                          1
+                        )} FTE`
+                      : "—"}
+                  </p>
+                </div>
+              </div>
+
+              {safeMonthlySavings === 0 && (
+                <p className="mt-3 text-xs leading-relaxed text-amber-300/80">
+                  With the current assumptions, savings are minimal. Try
+                  increasing your number of agents, hourly cost or human
+                  utilization to see the impact.
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <p className="mt-2 text-xs text-slate-500 sm:text-sm">
+          This calculator is for directional planning only and doesn&apos;t
+          constitute a financial guarantee. Actual results may vary based on
+          implementation and workflows.
+        </p>
+      </div>
+    </section>
+  );
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 export default function HomePage() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -152,7 +732,6 @@ export default function HomePage() {
       {showRoiNotice && (
         <div className="fixed bottom-5 right-4 z-40 max-w-xs sm:max-w-sm animate-[fadeInUp_0.4s_ease-out]">
           <div className="relative overflow-hidden rounded-2xl border border-white/15 bg-gradient-to-br from-violet-700/90 via-slate-900/95 to-black/95 px-4 py-4 shadow-[0_18px_60px_rgba(15,23,42,0.9)] backdrop-blur-xl">
-            {/* Close button */}
             <button
               type="button"
               onClick={() => setShowRoiNotice(false)}
@@ -162,7 +741,6 @@ export default function HomePage() {
               ✕
             </button>
 
-            {/* Label */}
             <div className="mb-2 flex items-center gap-2 text-[11px] font-medium text-violet-100">
               <span className="flex h-5 w-5 items-center justify-center rounded-full bg-violet-500/40 text-[10px]">
                 🤖
@@ -172,7 +750,6 @@ export default function HomePage() {
               </span>
             </div>
 
-            {/* Main numbers */}
             <div className="mb-3 grid grid-cols-2 gap-3 text-xs text-slate-100">
               <div className="rounded-xl border border-white/15 bg-white/5 p-3">
                 <p className="text-[10px] uppercase tracking-[0.16em] text-slate-400">
@@ -185,12 +762,13 @@ export default function HomePage() {
                 <p className="text-[10px] uppercase tracking-[0.16em] text-slate-400">
                   Human team
                 </p>
-                <p className="mt-1 text-sm font-semibold">3 agents · $24,000</p>
+                <p className="mt-1 text-sm font-semibold">
+                  3 agents · $24,000
+                </p>
                 <p className="mt-1 text-[11px] text-slate-400">per month</p>
               </div>
             </div>
 
-            {/* Savings + micro-bar */}
             <div className="mb-3 flex items-center justify-between gap-3 text-[11px] text-slate-200">
               <div>
                 <p className="font-semibold text-emerald-300">
@@ -206,12 +784,11 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* CTA */}
             <a
-              href="#demo"
+              href="#roi-calculator"
               className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-[11px] font-medium text-slate-50 transition-all hover:bg-white/20"
             >
-              See how AI replaces agents
+              Open ROI calculator
               <span className="flex h-4 w-4 items-center justify-center rounded-full bg-white/10 text-[10px]">
                 →
               </span>
@@ -482,16 +1059,19 @@ export default function HomePage() {
                         Used by teams in
                       </span>
                       <div className="flex flex-wrap gap-2">
-                        {["Healthcare", "Beauty", "Automotive", "Education"].map(
-                          (v) => (
-                            <span
-                              key={v}
-                              className="rounded-full border border-white/10 bg-white/5 px-3 py-1"
-                            >
-                              {v}
-                            </span>
-                          )
-                        )}
+                        {[
+                          "Healthcare",
+                          "Beauty",
+                          "Automotive",
+                          "Education",
+                        ].map((v) => (
+                          <span
+                            key={v}
+                            className="rounded-full border border-white/10 bg-white/5 px-3 py-1"
+                          >
+                            {v}
+                          </span>
+                        ))}
                       </div>
                     </div>
                   </div>
@@ -697,13 +1277,13 @@ export default function HomePage() {
             </div>
           </section>
 
+          {/* ROI CALCULATOR – just below hero */}
+          <RoiCalculatorSection />
+
           {/* MAIN CONTENT */}
           <div className="mx-auto w-full max-w-7xl px-4 pb-20 pt-16 sm:px-5 md:px-6 lg:px-10 lg:pb-24">
             {/* ABOUT / WHY CHOOSE US */}
-            <section
-              id="about"
-              className="animate-[fadeInUp_0.8s_ease-out]"
-            >
+            <section id="about" className="animate-[fadeInUp_0.8s_ease-out]">
               <div className="relative mx-auto max-w-5xl rounded-[32px] border border-white/10 bg-gradient-to-b from-purple-950/30 via-slate-950/80 to-black p-8 backdrop-blur-xl transition-all hover:border-white/15 sm:p-10 lg:rounded-[40px] lg:p-14">
                 <div className="pointer-events-none absolute inset-x-0 -top-16 h-32 bg-gradient-to-b from-violet-500/25 via-purple-500/10 to-transparent opacity-60" />
 
@@ -1016,8 +1596,8 @@ export default function HomePage() {
                     </span>
                   </h2>
                   <p className="max-w-2xl text-base text-slate-300 sm:text-lg">
-                    Start small, scale fast. Switch plans or cancel anytime —
-                    no long-term lock-in.
+                    Start small, scale fast. Switch plans or cancel anytime — no
+                    long-term lock-in.
                   </p>
 
                   {/* Billing toggle */}
@@ -1868,7 +2448,6 @@ export default function HomePage() {
     </div>
   );
 }
-
 function BackgroundFX() {
   return (
     <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
